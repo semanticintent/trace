@@ -1,5 +1,6 @@
 # TRACE
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20739404.svg)](https://doi.org/10.5281/zenodo.20739404)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **TRACE** — Timestamped Record of Agentic Chain Execution.
@@ -485,6 +486,7 @@ TRACE sits between execution and memory. REACH and OCTO write to it. Claude read
   title     = {TRACE: Timestamped Record of Agentic Chain Execution},
   year      = {2026},
   publisher = {Zenodo},
+  doi       = {10.5281/zenodo.20739404},
   url       = {https://github.com/semanticintent/trace}
 }
 ```
