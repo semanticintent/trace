@@ -17,13 +17,15 @@ var argsDoc = stdinRaw.Length > 0
     ? JsonDocument.Parse(stdinRaw)
     : JsonDocument.Parse("{}");
 
-var repoPath = argsDoc.RootElement.TryGetProperty("repo_path", out var rp)
-    ? rp.GetString() ?? "."
-    : ".";
+// Priority: stdin args → env var → default
+var repoPath = (argsDoc.RootElement.TryGetProperty("repo_path", out var rp) ? rp.GetString() : null)
+    ?? Environment.GetEnvironmentVariable("REACH_REPO")
+    ?? Environment.GetEnvironmentVariable("WORKSPACE") + "/reach"
+    ?? ".";
 
-var tracePath = argsDoc.RootElement.TryGetProperty("trace_file", out var tf)
-    ? tf.GetString() ?? "./reach-trace.ndjson"
-    : "./reach-trace.ndjson";
+var tracePath = (argsDoc.RootElement.TryGetProperty("trace_file", out var tf) ? tf.GetString() : null)
+    ?? Environment.GetEnvironmentVariable("TRACE_FILE")
+    ?? "./reach-trace.ndjson";
 
 // --- Git: commits today ---
 var commitsToday = new List<string>();
