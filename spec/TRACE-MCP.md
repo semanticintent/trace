@@ -1,8 +1,10 @@
 # TRACE MCP — Implementation Roadmap
 
-`trace.mcp.cs` — a single-file C# MCP server. Five tools, three phases.
+`reef-mcp` — a TypeScript MCP server. Five tools, three phases.
 
 The README specifies *what* each tool does. This document specifies *how to build it* — phases, dependencies, technical decisions, and the Semantic Intent blocks that make the Two-Reader Pattern work.
+
+**Implementation repo:** `@semanticintent/reef-mcp` (TypeScript, npm). The REACH arms that execute within the reef remain .NET 10 C# — the MCP server orchestrates them via child process, it does not replace them.
 
 ---
 
@@ -33,24 +35,7 @@ Accepts a TraceEvent object. Appends it to the NDJSON file as a single atomic li
 5. Flush immediately — do not buffer
 6. Release lock
 
-**Concurrency:** OCTO runs multiple arms simultaneously. Multiple `.cs` scripts may call `write_trace` at the same time. Use `FileStream` with retry-on-lock:
-
-```csharp
-var retries = 0;
-while (retries < 5)
-{
-    try
-    {
-        using var fs = new FileStream(tracePath, FileMode.Append,
-                                      FileAccess.Write, FileShare.None);
-        using var sw = new StreamWriter(fs);
-        sw.WriteLine(JsonSerializer.Serialize(traceEvent));
-        sw.Flush();
-        break;
-    }
-    catch (IOException) { Thread.Sleep(20 * ++retries); }
-}
-```
+**Concurrency:** OCTO runs multiple arms simultaneously. Multiple arms may call `write_trace` at the same time. The implementation must use exclusive file locking with retry-on-contention — open the file exclusively, write and flush atomically, release, retry on lock failure (up to 5 attempts, 20ms backoff).
 
 **Why this matters:** An event that fails to write is a silent gap. Silent gaps are invisible and therefore dangerous. The retry loop is the minimum concurrency guarantee.
 
@@ -78,23 +63,7 @@ since        →  parse relative or absolute → compare event.timestamp
 until        →  parse relative or absolute → compare event.timestamp
 ```
 
-**Source glob matching** — simple wildcard only (`*`):
-
-```csharp
-bool GlobMatch(string pattern, string value)
-{
-    if (!pattern.Contains('*')) return pattern == value;
-    var parts = pattern.Split('*');
-    var i = 0;
-    foreach (var part in parts)
-    {
-        var idx = value.IndexOf(part, i, StringComparison.Ordinal);
-        if (idx < 0) return false;
-        i = idx + part.Length;
-    }
-    return true;
-}
-```
+**Source glob matching** — simple wildcard only (`*`): split pattern on `*`, check each segment appears in order within the value. `"git.*"` matches `"git.commits"`, `"git.tags"`.
 
 **Relative time parsing** — the terms Claude uses in conversation:
 
@@ -108,7 +77,7 @@ bool GlobMatch(string pattern, string value)
 "N-days-ago"     →  N days ago (parse N from prefix)
 "N-weeks-ago"    →  N*7 days ago
 "N-months-ago"   →  N*30 days ago
-ISO 8601 string  →  parse directly (DateTime.Parse)
+ISO 8601 string  →  parse directly
 ```
 
 **Phase 1 deliverable:** A working MCP with two tools. Any REACH arm that calls `write_trace` after each operation is now fully auditable. Claude can query run history, reconstruct timelines, diff two runs, answer "what did we do last week." This is immediately useful with zero changes to the REACH runtime.
@@ -123,7 +92,7 @@ Executes a `.reach` or `.octo` file. Writes TRACE events unconditionally as side
 
 **Implementation steps:**
 
-1. Generate `run_id` if not provided: `Guid.NewGuid().ToString()`
+1. Generate `run_id` if not provided: `crypto.randomUUID()`
 2. Resolve the arm file — look in current directory and standard arm paths
 3. Write `ARM_START` event via `write_trace`
 4. Dispatch by file type:
@@ -225,17 +194,13 @@ Assembles a set of named arms into an `.octo` orchestration file.
 
 ### MCP Protocol
 
-Use the official `ModelContextProtocol` NuGet package rather than implementing stdio JSON-RPC directly:
+Use the `@modelcontextprotocol/sdk` npm package (TypeScript). Handles stdio transport, tool registration, and schema generation. Each tool is registered with a `server.tool()` call. The Semantic Intent block lives in the tool description — parsed by the MCP loader at startup, returned in tool output for Claude to read.
 
-```csharp
-#:package ModelContextProtocol@0.1.0-preview
-```
-
-This handles the stdio transport, tool registration, and schema generation. Each tool is registered with a `[McpServerTool]` attribute. The Semantic Intent block lives in the tool description string — parsed by the MCP loader at startup, returned in tool output for Claude to read.
+See `@semanticintent/reef-mcp` for the implementation.
 
 ### File Path Resolution
 
-Default trace file: `./reach-trace.ndjson` — relative to the working directory where `trace.mcp.cs` is started.
+Default trace file: `./reach-trace.ndjson` — relative to the working directory where `reef-mcp` is started.
 
 Configurable via environment variable: `TRACE_FILE=path/to/custom.ndjson`
 
@@ -243,18 +208,16 @@ Per-run isolation: if `TRACE_DIR` is set, write to `$TRACE_DIR/<run_id>.ndjson` 
 
 ### UUID Generation
 
-```csharp
-var traceId = Guid.NewGuid().ToString("D");  // standard hyphenated format
-var runId   = Guid.NewGuid().ToString("D");
+```typescript
+const traceId = crypto.randomUUID()
+const runId   = crypto.randomUUID()
 ```
 
 ### Timestamp Format
 
-```csharp
-var timestamp = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ");
+```typescript
+const timestamp = new Date().toISOString()  // always UTC, ISO 8601
 ```
-
-Always UTC. Always ISO 8601.
 
 ---
 
@@ -349,25 +312,20 @@ I estimate: low-medium complexity, correctness depends on arm availability
 
 ## MCP Server Startup
 
-```csharp
-#!/usr/bin/env dotnet-script
-#:package ModelContextProtocol@0.1.0-preview
-#:package Microsoft.Extensions.Hosting@8.0.0
+```typescript
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 
-using ModelContextProtocol.Server;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+const server = new McpServer({ name: 'reef-mcp', version: '0.1.0' })
 
-var builder = Host.CreateApplicationBuilder(args);
-builder.Services
-    .AddMcpServer()
-    .WithStdioServerTransport()
-    .WithTools<TraceTools>();
+// register tools: read_trace, write_trace, run_arm, write_arm, write_octo
+registerTools(server)
 
-await builder.Build().RunAsync();
+const transport = new StdioServerTransport()
+await server.connect(transport)
 ```
 
-All five tools live in `TraceTools`. The trace file path is resolved once at startup from `TRACE_FILE` env var or defaults to `./reach-trace.ndjson`.
+All five tools registered at startup. The trace file path resolved from `TRACE_FILE` env var or defaults to `./reach-trace.ndjson`.
 
 ---
 

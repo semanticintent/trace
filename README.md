@@ -236,12 +236,12 @@ See [examples/morning-brief.ndjson](examples/morning-brief.ndjson) for the full 
 
 ---
 
-## The MCP Server — `trace.mcp.cs`
+## The MCP Server — `reef-mcp`
 
-A single-file C# MCP server. Run it once. Leave it running.
+A TypeScript MCP server. Run it once. Leave it running.
 
 ```
-dotnet run trace.mcp.cs
+npx @semanticintent/reef-mcp
 ```
 
 ### Five tools. The complete surface.
@@ -433,9 +433,9 @@ Claude will faithfully reconstruct, visualize, and reason about whatever TRACE c
 
 ## The Two-Reader Pattern — Semantic Intent in MCP Tools
 
-Each tool in `trace.mcp.cs` carries a Semantic Intent block. The same block is read two ways simultaneously — this is not incidental, it is the design.
+Each tool in `reef-mcp` carries a Semantic Intent block. The same block is read two ways simultaneously — this is not incidental, it is the design.
 
-**Reader one: the parser.** When `trace.mcp.cs` starts, a deterministic parser reads every tool's Semantic Intent block and extracts the MCP input schema. No model is involved.
+**Reader one: the parser.** When `reef-mcp` starts, a deterministic parser reads every tool's Semantic Intent block and extracts the MCP input schema. No model is involved.
 
 **Reader two: Claude.** When Claude calls a tool and receives its output, the output includes the Semantic Intent block as an emitted directive. Claude reads it, recognises an action plan, and executes it — without being told to.
 
@@ -448,7 +448,7 @@ The pattern is described in full in [One Grammar, Two Readers](https://semantici
 ## What TRACE Does Not Do
 
 - **No dashboard.** Visualization happens on demand through Claude and the MCP server. Nothing persists on screen.
-- **No schema enforcement at write time.** TRACE events are written by Claude-compiled C# — the schema is a convention, not a validator.
+- **No schema enforcement at write time.** TRACE events are written by Claude-compiled arms — the schema is a convention, not a validator.
 - **No event modification.** Append-only is not a preference. It is the design. A TRACE file that has been modified is not a TRACE file.
 - **No always-on process.** The MCP server runs when you need it. The trace file exists when you don't.
 
@@ -472,9 +472,10 @@ TRACE sits between execution and memory. REACH and OCTO write to it. Claude read
 
 ## Requirements
 
-- .NET 10 SDK (for `trace.mcp.cs`)
+- Node.js 20+ (for `reef-mcp`)
 - Claude Code CLI or any Claude interface with MCP support
 - A `.reach` or `.octo` workflow that appends TRACE events (or any process that writes NDJSON to the convention path)
+- .NET 10 SDK — for the REACH arms that execute within the reef
 
 ---
 
