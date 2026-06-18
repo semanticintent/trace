@@ -1,0 +1,52 @@
+cff-version: 1.2.0
+message: "If you use TRACE in your work, please cite as below."
+type: software
+title: "TRACE: Timestamped Record of Agentic Chain Execution"
+abstract: >
+  TRACE is an append-only execution record for the REACH + OCTO ecosystem.
+  Where REACH reaches and OCTO orchestrates, TRACE remembers — every arm,
+  every chain, every human decision, every artifact, every failure. A flat
+  NDJSON file and a five-tool MCP server are all that is required.
+  No database. No dashboard. No always-on process.
+authors:
+  - family-names: "Shatny"
+    given-names: "Michael"
+    website: "https://semanticintent.dev"
+version: "0.1.0"
+date-released: "2026-06-17"
+license: MIT
+repository-code: "https://github.com/semanticintent/trace"
+url: "https://reach.semanticintent.dev"
+keywords:
+  - workflow-automation
+  - execution-record
+  - append-only
+  - agentic-computing
+  - human-in-the-loop
+  - csharp
+  - mcp
+  - claude
+  - semantic-intent
+  - ndjson
+references:
+  - type: software
+    title: "REACH + OCTO: A Local Workflow Practice and Orchestration Pattern"
+    authors:
+      - family-names: Shatny
+        given-names: Michael
+    doi: "10.5281/zenodo.20680385"
+    url: "https://github.com/semanticintent/reach"
+  - type: software
+    title: "Intent-as-Infrastructure: When the Compiler Is Claude"
+    authors:
+      - family-names: Shatny
+        given-names: Michael
+    doi: "10.5281/zenodo.20681523"
+    url: "https://github.com/semanticintent/intent-as-infrastructure"
+  - type: article
+    title: "Semantic Intent as Emitted Directive"
+    authors:
+      - family-names: Shatny
+        given-names: Michael
+    doi: "10.5281/zenodo.20563444"
+    url: "https://github.com/semanticintent/semantic-intent-emitted-directive"

@@ -1,0 +1,13 @@
+.DS_Store
+
+# Default TRACE files — real run data, not committed
+reach-trace.ndjson
+reach-trace-*.ndjson
+
+# Per-run isolation folder
+.trace/
+
+# .NET build artifacts
+bin/
+obj/
+*.user
